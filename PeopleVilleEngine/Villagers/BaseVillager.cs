@@ -9,6 +9,11 @@ public abstract class BaseVillager
     public bool IsMale { get; set; }
     private Village _village;
     public ILocation? Home { get; set; } = null;
+    public int IQ = 100;
+    public int Money = 100;
+    public int Food = 0;
+    public int Health = 0;
+
     public bool HasHome() => Home != null;
 
     protected BaseVillager(Village village)
