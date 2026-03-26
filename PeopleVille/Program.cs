@@ -1,18 +1,14 @@
 ﻿using PeopleVilleEngine;
+using PeopleVilleEngine.Trading;
+
 Console.WriteLine("PeopleVille");
-
-//Create village
 var village = new Village();
-Console.WriteLine(village.ToString());
 
+village.TickHappened += (_, tick) => Console.WriteLine($"[Tick] {tick}");
+village.RandomEventHappened += (_, msg) => Console.WriteLine($"[Event] {msg}");
 
-//Print locations with villagers to screen
-foreach (var location in village.Locations)
+Console.WriteLine(village);
+for (int i = 0; i < 5; i++)
 {
-    var locationStatus = location.Name;
-    foreach(var villager in location.Villagers().OrderByDescending(v => v.Age))
-    {
-        locationStatus += $" {villager}";
-    }
-    Console.WriteLine(locationStatus);
+    village.RunTick();
 }

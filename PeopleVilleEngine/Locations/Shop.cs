@@ -1,26 +1,22 @@
 ﻿namespace PeopleVilleEngine.Locations;
 
-using PeopleVilleEngime.Items;
 using PeopleVilleEngine.Services;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 
-public class Shop : IService
+public class Shop : LocationBase, IService
 {
-    public string Name { get; set; } = "Shop";
+    public override string Name => "Shop";
 
-    public void ProvideService(BaseVillager villager)
+    public override void Interact(BaseVillager villager)
     {
-        if (villager.Money>=100)
-        {
+        if (!_villagers.Contains(villager)) 
+            _villagers.Add(villager);
 
+        if (villager.Money >= 100)
+        {
             villager.Money -= 100;
             villager.Food += 10;
-
         }
     }
+
+    public void ProvideService(BaseVillager villager) => Interact(villager);
 }

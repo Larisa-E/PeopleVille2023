@@ -8,14 +8,18 @@ using System.Text;
 using System.Threading.Tasks;
 
 
-public class Hospital : IService
+public class Hospital : LocationBase,  IService
 {
-    public string Name { get; set; } = "Hospital";
+    public override string Name => "Hospital";
 
-    public void ProvideService(BaseVillager villager)
+    public override void Interact(BaseVillager villager)
     {
-        if (villager == null) return;
+        if (!_villagers.Contains(villager))
+            _villagers.Add(villager);
+
         villager.Health++;
     }
+
+    public void ProvideService(BaseVillager villager) => Interact(villager);
 }
 
