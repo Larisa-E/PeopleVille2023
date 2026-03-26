@@ -1,11 +1,13 @@
 ﻿namespace PeopleVilleEngine.Items;
+
+using PeopleVilleEngime.Items;
 using System;
 
 
 
-public abstract class Clothes
+public abstract class Clothes : Item
 {
-    protected Clothes(string name, int value)
+    protected Clothes(string name, int value) : base(name, value)
     {
     }
 }

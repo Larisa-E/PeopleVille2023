@@ -13,5 +13,6 @@ public class ChildVillager : BaseVillager
     public ChildVillager(Village village, int age, bool isMale) :this(village, age)
     {
         IsMale=isMale;
+        FirstName = village.VillagerNameLibrary.GetRandomFirstName(isMale);
     }
 }
