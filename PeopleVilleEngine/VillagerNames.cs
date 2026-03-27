@@ -1,5 +1,4 @@
-﻿using System.Data;
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace PeopleVilleEngine;
 public class VillagerNames
@@ -7,7 +6,7 @@ public class VillagerNames
     private string[] _maleFirstNames = Array.Empty<string>();
     private string[] _femaleFirstNames = Array.Empty<string>();
     private string[] _lastNames = Array.Empty<string>();
-    RNG _random;
+    private RNG _random;
     private static readonly Lazy<VillagerNames> _instance = new(() => new VillagerNames());
 
     private VillagerNames()
@@ -29,6 +28,7 @@ public class VillagerNames
         
         string jsonData = File.ReadAllText(jsonFile);
 
+        // error handling
         try
         {
             var namesData = JsonSerializer.Deserialize<NamesData>(jsonData);

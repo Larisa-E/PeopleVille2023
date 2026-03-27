@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <_CanUsePowerShell Condition="'$(OS)' == 'Windows_NT'">true</_CanUsePowerShell>
+  </PropertyGroup>
+
+  <Target Name="UnblockProjectAndSolutionFiles" BeforeTargets="Build" Condition="'$(_CanUsePowerShell)' == 'true'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Get-ChildItem -Path '$(MSBuildProjectDirectory)' -Recurse -File | Unblock-File -ErrorAction SilentlyContinue&quot;" ContinueOnError="WarnAndContinue" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;if (Test-Path '$(SolutionDir)') { Get-ChildItem -Path '$(SolutionDir)' -Recurse -File | Unblock-File -ErrorAction SilentlyContinue }&quot;" ContinueOnError="WarnAndContinue" />
+  </Target>
+
+  <Target Name="UnblockBuiltArtifacts" AfterTargets="Build" Condition="'$(_CanUsePowerShell)' == 'true'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;if (Test-Path '$(TargetDir)') { Get-ChildItem -Path '$(TargetDir)' -Recurse -File | Unblock-File -ErrorAction SilentlyContinue }&quot;" ContinueOnError="WarnAndContinue" />
+  </Target>
+</Project>

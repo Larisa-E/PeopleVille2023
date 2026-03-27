@@ -1,4 +1,4 @@
-﻿using PeopleVilleEngime.Items;
+﻿using PeopleVilleEngine.Items;
 
 namespace PeopleVilleEngine.Trading
 {

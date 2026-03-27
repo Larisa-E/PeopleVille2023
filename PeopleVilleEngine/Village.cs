@@ -14,23 +14,172 @@ public class Village
     public event EventHandler<string>? RandomEventHappened;
     public event EventHandler<int>? TickHappened;
     private int _tick;
+    private const int MinVillagers = 10;
+    private int MaxVillagersExclusive = 24;
+    private readonly object _sync = new(); // is the gate and only one worker can change village state at a time
+    private CancellationTokenSource? _simulationCts; // stop 
+    private Task? _simulationTask; // start button and running
+    public bool IsSimulationsRunning => _simulationTask is { IsCompleted: false };
 
     public void RunTick()
     {
-        _tick++;
-        TickHappened?.Invoke(this, _tick);
+        lock (_sync)
+        // protect RunTick() with lock. each tick is a sfae transaction like update and then emit events
+        {
+            _tick++;
+            TickHappened?.Invoke(this, _tick);
 
-        if (Villagers.Count == 0 || Locations.Count == 0)
+            if (Villagers.Count == 0)
+            {
+                RandomEventHappened?.Invoke(this, $"Tick {_tick}: No villagers in village.");
+                return;
+            }
+
+            if (Locations.Count == 0)
+            {
+                RandomEventHappened?.Invoke(this, $"Tick {_tick}: No locations available.");
+                return;
+            }
+
+            var villager = Villagers[_random.Next(Villagers.Count)];
+            var location = DecideNextLocation(villager);
+            villager.MoveTo(location);
+
+            if (location is LocationBase interactiveLocation)
+                interactiveLocation.Interact(villager);
+
+            EmitPersonalEvent(villager, location);
+            TryEmitSocialEvent(location);
+            //TryEmitVillageEvent();
+
+            RandomEventHappened?.Invoke(
+                this,
+                $"[Move] Tick {_tick}: {villager.FirstName} moved to {location.Name}. " +
+                $"Stats -> IQ:{villager.IQ}, Health:{villager.Health}, Money:{villager.Money}, Food:{villager.Food}");
+        }
+    }
+
+    private void EmitPersonalEvent(BaseVillager villager, ILocation location)
+    {
+        if (location is School)
+        {
+            RandomEventHappened?.Invoke(this, $"[Even] {villager.FirstName} learned something new. IQ is now{villager.IQ}.");
+        }
+
+        if (location is Hospital)
+        {
+            RandomEventHappened?.Invoke(this, $"[Even] {villager.FirstName} got treatment. Health is now{villager.Health}.");
+        }
+
+
+        if (location is Shop)
+        {
+            RandomEventHappened?.Invoke(this, $"[Even] {villager.FirstName} visisted the shop. Money={villager.Money}, Food={villager.Food}.");
+        }
+
+        if (villager.Home != null && location == villager.Home && villager.Food > 0)
+        {
+            villager.Food -= 1;
+            villager.Health += 1;
+            RandomEventHappened?.Invoke(this, $"[Event] {villager.FirstName} ate at home. Food-1, Health+1.");
+        }
+    }
+
+    private void TryEmitSocialEvent(ILocation location)
+    {
+        var atLocation = location.Villagers();
+        if (atLocation.Count < 2)
             return;
 
-        var villager = Villagers[_random.Next(Villagers.Count)];
-        var location = Locations[_random.Next(Locations.Count)];
-        villager.MoveTo(location);
+        if (_random.Next(0, 100) >= 25) // 25% chance
+            return;
 
-        if (location is LocationBase interactiveLocation)
-            interactiveLocation.Interact(villager);
+        var first = atLocation[_random.Next(atLocation.Count)];
+        var second = atLocation[_random.Next(atLocation.Count)];
+        if (ReferenceEquals(first, second))
+            return;
 
-        RandomEventHappened?.Invoke(this, $"Tick {_tick}: {villager.FirstName} moved to {location.Name}.");
+        first.Health += 1;
+        second.Health += 1;
+
+        RandomEventHappened?.Invoke(
+            this,
+            $"[Social] {first.FirstName} met {second.FirstName} at {location.Name}. Both feel better (+1 Health).");
+    }
+
+    //private void TryEmitVillageEvent()
+    //{
+
+    //}
+
+    public void StartSimulation(TimeSpan tickInterval)
+    {
+        lock (_sync)
+        {
+            if (_simulationTask is { IsCompleted: false })
+                return;
+
+            StartVillagerTurnLoops(); // start all villager threads
+            _simulationCts = new CancellationTokenSource(); // create stop signal for this run
+            _simulationTask = SimulationLoopAsync(tickInterval, _simulationCts.Token); // start background tick loop
+        }
+    }
+
+    public async Task StopSimulationAsync()
+    {
+        CancellationTokenSource? cts;
+        Task? simulationTask;
+        List<BaseVillager> villagerSnapshot;
+
+        lock (_sync)
+        {
+            cts = _simulationCts;
+            simulationTask = _simulationTask;
+            villagerSnapshot = Villagers.ToList();
+        }
+
+        if (cts == null || simulationTask == null)
+            return;
+
+        cts.Cancel();
+
+        try
+        {
+            await simulationTask; // waits until loop exits
+        }
+        catch (OperationCanceledException)
+        {
+            // expected when simulation loop is canceled
+        }
+
+        try
+        {
+            var stopTasks = villagerSnapshot.Select(v => v.StopTurnLoopAsync());
+            await Task.WhenAll(stopTasks);
+        }
+        catch (OperationCanceledException)
+        {
+            // expected when villager loops are canceled
+        }
+        finally
+        {
+            lock(_sync)
+            {
+                _simulationCts?.Dispose();
+                _simulationCts = null;
+                _simulationTask = null;
+                // reset so simulations can start again
+            }
+        }
+    }
+
+    private async Task SimulationLoopAsync(TimeSpan tickInterval, CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            RunTick();
+            await Task.Delay(tickInterval, token);
+        }
     }
 
     public Village()
@@ -52,7 +201,7 @@ public class Village
 
     private void CreateVillage()
     {
-        var villagers = _random.Next(10, 24);
+        var villagers = _random.Next(MinVillagers, MaxVillagersExclusive);
         Console.ForegroundColor = ConsoleColor.Red;
 
         var villageCreators = LoadVillagerCreatorFactories();
@@ -81,7 +230,7 @@ public class Village
     private List<IVillagerCreator> LoadVillagerCreatorFactories()
     {
         var villageCreators = new List<IVillagerCreator>();
-        // loading
+        // loading DLL: error handling
         LoadVillagerCreatorFactoriesFromType(
             AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes()),
             villageCreators);
@@ -124,6 +273,39 @@ public class Village
 
     public override string ToString()
     {
-        return $"Village has {Villagers.Count} villagers, where {Villagers.Count(v => v.HasHome() == false)} are homeless.";
+        var homelessCount = Villagers.Count(v => !v.HasHome());
+        var houseCount = Villagers.Count - homelessCount;
+
+        return $"Village summary: Villagers={Villagers.Count} Housed={houseCount}, Homeless={homelessCount}, Locations={Locations.Count}.";
     }
+
+    // reasons for villagers to move
+    private ILocation DecideNextLocation(BaseVillager villager)
+    {
+        // priority 1: if low food, go shop
+        var shop = Locations.FirstOrDefault(l => l is Shop);
+        if (villager.Food < 5 && shop != null)
+            return shop;
+
+        // priority 2: low health, so go hospital
+        var hospital = Locations.FirstOrDefault(l => l is Hospital);
+        if (villager.Health < 3 && hospital != null)
+            return hospital;
+
+        // priority 3: child go tho school
+        var school = Locations.FirstOrDefault(l => l is School);
+        if (villager is PeopleVilleEngine.Villagers.ChildVillager && school != null && _random.Next(0, 100) < 70)
+            return school;
+
+        return Locations[_random.Next(Locations.Count)];
+    }
+
+    private void StartVillagerTurnLoops()
+    {
+        foreach (var villager in Villagers)
+        {
+            villager.StartTurnLoop();
+        }
+    }
+
 }

@@ -1,7 +1,6 @@
 namespace PeopleVilleEngine.Locations;
 
 using PeopleVilleEngine.Services;
-using System;
 
 public class School : LocationBase, IService
 {

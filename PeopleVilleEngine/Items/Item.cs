@@ -1,8 +1,4 @@
-﻿namespace PeopleVilleEngime.Items;
-using System;
-
-
-public abstract class Item
+﻿public abstract class Item
 {
 	public string Name {  get; set; }
 	public int Value { get; set; }

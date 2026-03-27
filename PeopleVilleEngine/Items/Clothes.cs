@@ -1,6 +1,6 @@
 ﻿namespace PeopleVilleEngine.Items;
 
-using PeopleVilleEngime.Items;
+using PeopleVilleEngine.Items;
 using System;
 
 
