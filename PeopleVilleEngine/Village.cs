@@ -81,7 +81,7 @@ public class Village
     private List<IVillagerCreator> LoadVillagerCreatorFactories()
     {
         var villageCreators = new List<IVillagerCreator>();
-        // loading
+        // loading DLL: error handling
         LoadVillagerCreatorFactoriesFromType(
             AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes()),
             villageCreators);
