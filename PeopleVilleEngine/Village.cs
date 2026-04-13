@@ -1,6 +1,7 @@
 ﻿namespace PeopleVilleEngine;
 using PeopleVilleEngine.Villagers.Creators;
 using PeopleVilleEngine.Locations;
+using PeopleVilleEngine.Trading;
 using System.Reflection;
 using System.Linq;
 
@@ -50,6 +51,7 @@ public class Village
 
             EmitPersonalEvent(villager, location);
             TryEmitSocialEvent(location);
+            TryEmitTradeEvent(location);
             //TryEmitVillageEvent();
 
             RandomEventHappened?.Invoke(
@@ -105,6 +107,51 @@ public class Village
         RandomEventHappened?.Invoke(
             this,
             $"[Social] {first.FirstName} met {second.FirstName} at {location.Name}. Both feel better (+1 Health).");
+    }
+
+    private void TryEmitTradeEvent(ILocation location)
+    {
+        var atLocation = location.Villagers();
+        if (atLocation.Count < 2)
+            return;
+
+        if (_random.Next(0, 100) >= 20) // 20% chance
+            return;
+
+        var from = atLocation[_random.Next(atLocation.Count)];
+        var to = atLocation[_random.Next(atLocation.Count)];
+
+        if (ReferenceEquals(from, to))
+            return;
+
+        var doMoneyTrade = _random.Next(0, 2) == 0;
+
+        if (doMoneyTrade)
+        {
+            if (from.Money <= 0)
+                return;
+
+            var amount = _random.Next(1, Math.Min(from.Money, 20) + 1);
+            if (!TransactionLogic.TransferMoney(from, to, amount))
+                return;
+
+            RandomEventHappened?.Invoke(
+                this,
+                $"[Trade] {from.FirstName} gave {amount} money to {to.FirstName} at {location.Name}.");
+
+            return;
+        }
+
+        if (from.Inventory.Count == 0)
+            return;
+
+        var item = from.Inventory[_random.Next(from.Inventory.Count)];
+        if (!TransactionLogic.TransferItem(from, to, item))
+            return;
+
+        RandomEventHappened?.Invoke(
+            this,
+            $"[Trade] {from.FirstName} gave {item.Name} to {to.FirstName} at {location.Name}.");
     }
 
     //private void TryEmitVillageEvent()
