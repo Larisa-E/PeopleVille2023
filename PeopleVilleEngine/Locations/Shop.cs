@@ -11,10 +11,10 @@ public class Shop : LocationBase, IService
         if (!_villagers.Contains(villager)) 
             _villagers.Add(villager);
 
-        if (villager.Money >= 100)
+        if (villager.Money >= 20)
         {
-            villager.Money -= 100;
-            villager.Food += 10;
+            villager.Money -= 20;
+            villager.Food += 5;
         }
     }
 
